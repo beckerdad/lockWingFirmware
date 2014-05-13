@@ -4,6 +4,11 @@ using Microsoft.SPOT.Hardware;
 using SecretLabs.NETMF.Hardware;
 using SecretLabs.NETMF.Hardware.Netduino;
 
+//
+//  4 May, Becker goes for a single timed stop.
+//  Have to implement the speed controller.
+//
+
 
 namespace mk3BrakeTestA
 {
@@ -85,7 +90,7 @@ namespace mk3BrakeTestA
                     GlobalVariables.long1.Duration = GlobalVariables.long1Dur;
                     GlobalVariables.long2.Duration = GlobalVariables.long2Dur;
                     //  Feed through the throttle
-                    if (!GlobalVariables.kill) GlobalVariables.throttle.Duration = GlobalVariables.throttleDur;
+                    // if (!GlobalVariables.kill) GlobalVariables.throttle.Duration = GlobalVariables.throttleDur;
                     //  Set the kill process
                     if (GlobalVariables.pulsePeriod[4] > 127)
                     {
@@ -96,9 +101,9 @@ namespace mk3BrakeTestA
                     else
                     {
                         GlobalVariables.kill = false;
-                        GlobalVariables.stopped = false;
+                        GlobalVariables.stopAtPoint = false;
                         //GlobalVariables.brake.Duration = 1445;
-                        GlobalVariables.throttle.Duration = (UInt32)((double)GlobalVariables.pulsePeriod[5] * 800d / 256d + 1000);
+//                        GlobalVariables.throttle.Duration = (UInt32)((double)GlobalVariables.pulsePeriod[5] * 800d / 256d + 1000);
 //                        GlobalVariables.green.Write(false);
                    }
                 }
