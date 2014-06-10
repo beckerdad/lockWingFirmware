@@ -35,6 +35,9 @@ namespace mk3BrakeTestA
 
         public static bool kill = false;
         public static bool stopped = false;
+        public static bool stopAtPoint = false;
+
+        public static double rpm = 0;
     }
 
 
@@ -53,7 +56,7 @@ namespace mk3BrakeTestA
 
 //            SetPwms setPwms = new SetPwms();
             ReadPPM readPPM = new ReadPPM();
-            SpeedController speedController = new SpeedController();
+            readMagnets speedController = new readMagnets();
             GlobalVariables.flex.Start();
             GlobalVariables.long1.Start();
             GlobalVariables.long2.Start();
