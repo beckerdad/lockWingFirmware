@@ -1,9 +1,9 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 11.00
-# Visual C# Express 2010
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Express 2012 for Windows Desktop
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mk3BrakeTestA", "mk3BrakeTestA\mk3BrakeTestA.csproj", "{E28572DD-3C37-472B-B1B0-B2017AE51EB7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Marenco.Comms", "..\..\..\..\..\..\..\marenco\netduinoLibraries\Marenco.Comms\Marenco.Comms\Marenco.Comms.csproj", "{A2B6CAF3-EB07-4A0B-9F93-6905343BA62B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Marenco.Comms", "..\..\..\..\marenco\marencoLibraries\Marenco.Comms\Marenco.Comms\Marenco.Comms.csproj", "{A2B6CAF3-EB07-4A0B-9F93-6905343BA62B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

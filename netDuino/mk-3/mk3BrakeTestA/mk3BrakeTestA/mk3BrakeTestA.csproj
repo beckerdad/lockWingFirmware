@@ -50,7 +50,7 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\..\..\..\marenco\netduinoLibraries\Marenco.Comms\Marenco.Comms\Marenco.Comms.csproj">
+    <ProjectReference Include="..\..\..\..\..\marenco\marencoLibraries\Marenco.Comms\Marenco.Comms\Marenco.Comms.csproj">
       <Project>{A2B6CAF3-EB07-4A0B-9F93-6905343BA62B}</Project>
       <Name>Marenco.Comms</Name>
     </ProjectReference>
