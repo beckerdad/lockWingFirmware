@@ -20,24 +20,29 @@ namespace matlabInterface
         //  Servo drives
         //
 
-        public static PWM motorDrive = new PWM(SecretLabs.NETMF.Hardware.Netduino.PWMChannels.PWM_PIN_D5, (UInt32)20000, (UInt32)1050, PWM.ScaleFactor.Microseconds, false);
+        public static PWM motorDrive = new PWM(SecretLabs.NETMF.Hardware.Netduino.PWMChannels.PWM_PIN_D5, (UInt32)20000, (UInt32)1000, PWM.ScaleFactor.Microseconds, false);
         public static PWM front = new PWM(SecretLabs.NETMF.Hardware.Netduino.PWMChannels.PWM_PIN_D6, (UInt32)20000, (UInt32)1500, PWM.ScaleFactor.Microseconds, false);
         public static PWM inside = new PWM(SecretLabs.NETMF.Hardware.Netduino.PWMChannels.PWM_PIN_D9, (UInt32)20000, (UInt32)1500, PWM.ScaleFactor.Microseconds, false);
         public static PWM outside = new PWM(SecretLabs.NETMF.Hardware.Netduino.PWMChannels.PWM_PIN_D10, (UInt32)20000, (UInt32)1500, PWM.ScaleFactor.Microseconds, false);
         public static PWM brake = new PWM(SecretLabs.NETMF.Hardware.Netduino.PWMChannels.PWM_PIN_D3, (UInt32)20000, (UInt32)1500, PWM.ScaleFactor.Microseconds, false);
-
+        public static AnalogInput analogIn = new AnalogInput(Cpu.AnalogChannel.ANALOG_4);
         //
         //  Global variables.
         //
 
+        public static byte[] podCommand = new byte[6] { 0, 127, 127, 127, 104, 104 };
+
         public static UInt64 timeOld = 0;
+        public static UInt64 timeNow = 0;
         public static readonly object lockToken = new object();
 
         public static double rpm = 0;
         public static double rpmCommand = 0;
         public static bool rotorStopped = true;
 
-        public static double iFix = 1;
+        public static double intFix = 1;
         public static double propFix = 1;
+        public static double intOut = 0;
+        public static double propOut = 0;
     }
 }
