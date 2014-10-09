@@ -25,6 +25,12 @@ using SecretLabs.NETMF.Hardware.Netduino;
 //  zero angle.
 //  No non-linear corrections are implemented at this time.
 //
+//  5 October, start with rigging. Make sure the left and right servos are
+//  level. The servo offsets are done in terms of microseconds. It is simpler
+//  to keep track of.
+//
+//  Introduce side specific code
+//
 
 namespace matlabInterface
 {
@@ -33,11 +39,8 @@ namespace matlabInterface
         //
         //  User defined constants.
         //
-        public static double[] servoSign = new double[5] { 1, -1, 1, -1, 1 };
-        public const UInt32 frontAdd = 1500;
-        //  Maximize the sensitivity of the servos. 
-        // Based on a scaling of 1, both cyclic and collective are set with a 
-        //  difference of 30/128. Add the 2 numbers
+
+
 
 
 
@@ -138,12 +141,12 @@ namespace matlabInterface
             //
             lock (GVars.lockToken)
             {
-                UInt32 servoFront = (UInt32)(((int)GVars.podCommand[1] - 127) * servoSign[1] * GVars.servoScale * GVars.byte2Pulse) +
-                                    (UInt32)(((int)GVars.podCommand[2] - 127) * servoSign[1] * GVars.servoScale * GVars.byte2Pulse) + frontAdd;
-                UInt32 servoInside = (UInt32)(((int)GVars.podCommand[1] - 127) * servoSign[2] * GVars.servoScale * GVars.byte2Pulse) -
-                                     (UInt32)(((int)GVars.podCommand[2] - 127) * servoSign[2] * GVars.servoScale * GVars.byte2Pulse * 0.866d) + (UInt32)1500;
-                UInt32 servoOutside = (UInt32)(((int)GVars.podCommand[1] - 127) * servoSign[3] * GVars.servoScale * GVars.byte2Pulse) -
-                                      (UInt32)(((int)GVars.podCommand[2] - 127) * servoSign[3] * GVars.servoScale * GVars.byte2Pulse * 0.866d) + (UInt32)1500;
+                UInt32 servoFront = (UInt32)(((int)GVars.podCommand[1] - 127) * GVars.servoSign[1] * GVars.servoScale * GVars.byte2Pulse) +
+                                    (UInt32)(((int)GVars.podCommand[2] - 127) * GVars.servoSign[1] * GVars.servoScale * GVars.byte2Pulse) + GVars.frontAdd;
+                UInt32 servoInside = (UInt32)(((int)GVars.podCommand[1] - 127) * GVars.servoSign[2] * GVars.servoScale * GVars.byte2Pulse * GVars.collectiveScale) -
+                                     (UInt32)(((int)GVars.podCommand[2] - 127) * GVars.servoSign[2] * GVars.servoScale * GVars.byte2Pulse * GVars.cyclicScale) + GVars.inAdd;
+                UInt32 servoOutside = (UInt32)(((int)GVars.podCommand[1] - 127) * GVars.servoSign[3] * GVars.servoScale * GVars.byte2Pulse * GVars.collectiveScale) -
+                                      (UInt32)(((int)GVars.podCommand[2] - 127) * GVars.servoSign[3] * GVars.servoScale * GVars.byte2Pulse * GVars.cyclicScale) + GVars.outAdd;
 
 
                 GVars.front.Duration = servoFront;
@@ -157,10 +160,10 @@ namespace matlabInterface
                 
                 rpmByte[0] = (byte)((Int16)GVars.rpm & 0xFF);
                 rpmByte[1] = (byte)(((Int16)GVars.rpm >> 8) & 0xFF);
-                rpmByte[2] = (byte)((Int16)GVars.propOut & 0xFF);
-                rpmByte[3] = (byte)(((Int16)GVars.propOut >> 8) & 0xFF);
-                rpmByte[4] = (byte)((Int16)GVars.intOut & 0xFF);
-                rpmByte[5] = (byte)(((Int16)GVars.intOut >> 8) & 0xFF);
+                rpmByte[2] = (byte)((Int16)(GVars.propOut*100.0d) & 0xFF);
+                rpmByte[3] = (byte)(((Int16)(GVars.propOut*100.0d) >> 8) & 0xFF);
+                rpmByte[4] = (byte)((Int16)(GVars.intOut*100.0d) & 0xFF);
+                rpmByte[5] = (byte)(((Int16)(GVars.intOut*100.0d) >> 8) & 0xFF);
                 rpmByte[6] = (byte)((Int16)accelOut & 0xFF);
                 rpmByte[7] = (byte)(((Int16)accelOut >> 8) & 0xFF);
                 rpmByte[8] = (byte)((Int16)(GVars.timeNow >> 10) & 0xFF);
@@ -171,8 +174,10 @@ namespace matlabInterface
                 sockOut.SendTo(rpmByte, sendingEndPoint);
 
                 GVars.rpmCommand = GVars.podCommand[0];
-                GVars.propFix = (double)((GVars.podCommand[4] * GVars.podCommand[4])) / 255.0d / 255.0d * 4.8d + .2d;  // 1/255^2*4.8
-                GVars.intFix = (double)((GVars.podCommand[5] * GVars.podCommand[5])) / (255.0d * 255.0d) * 4.8d + .2d;
+//                GVars.propFix = (double)((GVars.podCommand[4] * GVars.podCommand[4])) / (255.0d * 255.0d) * 4.8d + .2d;  // 1/255^2*4.8
+//                GVars.intFix = (double)((GVars.podCommand[5] * GVars.podCommand[5])) / (255.0d * 255.0d) * 4.8d + .2d;
+                GVars.propFix = (double)((GVars.podCommand[4] * GVars.podCommand[4])) / (255.0d * 255.0d) * 5.0d;  // 1/255^2*4.8
+                GVars.intFix = (double)((GVars.podCommand[5] * GVars.podCommand[5])) / (255.0d * 255.0d) * 5.0d;
             }
         }
             , null, 100, 10);
