@@ -2,21 +2,24 @@ using System;
 using Microsoft.SPOT;
 using System.Threading;
 
+// Add feedforward.
+
 namespace matlabInterface
 {
     class rpmControlLoop
     {
-        private const double rpmMaxSpeed = 1100d; //1450.0d;                        // rpm set point
+        private const double feedForward = 0.1d;
+        private const double rpmMaxSpeed = 1200d; //1450.0d;                        // rpm set point
         private const int rpmGood = 20;                                             // Green led if closer than this, red otherwise
 
         private const int controlPeriod = 25;                                      // Control loop period in milliseconds
-        private const int controlStart = 100;                                      // Delay before timer starts
+        private const int controlStart = 10;                                      // Delay before timer starts
 
         private const double aOne = 1.0d;                                           // Always 1.
-        private const double iGain = 0.01d * controlPeriod / 1000.0d;                 // Integral gain (B) times Period.
+        private const double iGain = 0.5d * controlPeriod / 1000.0d;                 // Integral gain (B) times Period.
         private const double cOne = 1.0d;                                           // Always 1
-        private const double propGain = 0.1d;                                           // Proportional gain 
-        private const double rpmIntLimit = 200.0d;                               // Integral limit. About 100 in the simulations.
+        private const double propGain = 0.08d;                                           // Proportional gain 
+        private const double rpmIntLimit = 100.0d;                               // Integral limit. About 100 in the simulations.
         private const double rpmIntSlope = rpmIntLimit / 256.0d;
         private const double rpmIntLimitBot = 20.0d;
         private const int controlCutIn = 30;                                        // Speed at which the stick responds
@@ -84,15 +87,18 @@ namespace matlabInterface
                 //
                 //  Limit the integral gain at low speeds
                 //
-                if (rpmLocal < 800.0d)
-                {
-                    rpmCNow = rpmLocal / 800.0d * cOne;
-                }
-                else
-                {
-                    rpmCNow = cOne;
-                }
-                if (rpmLocal < 300.0d)
+                //if (rpmLocal < 800.0d)
+                //{
+                //    rpmCNow = rpmLocal / 800.0d * cOne;
+                //}
+                //else
+                //{
+                //    rpmCNow = cOne;
+                //}
+                //
+                //  Set the integrator to zero for fresh starts.
+                //
+                if (rpmCMDLocal < 30.0d)
                 {
                     rpmX = 0.0d;
                 }
@@ -103,8 +109,10 @@ namespace matlabInterface
 
                 lock (GVars.lockToken)
                 {
-                    s3Float = rpmCNow * rpmX + GVars.propFix * propGain * rpmError;
-                    rpmX = aOne * rpmX + GVars.iFix * iGain * rpmError;
+                    s3Float = cOne * rpmX + GVars.propFix * propGain * rpmError + feedForward * rpmRequired;
+                    rpmX = aOne * rpmX + GVars.intFix * iGain * rpmError;
+                    GVars.propOut = GVars.propFix * propGain * rpmError;
+                    GVars.intOut = rpmX;
                 }
                 if (s3Float < 28) s3Float = 28;
                 //                Debug.Print(rpm.ToString() + " " + rpmRequired.ToString() + " " + s3Float.ToString() + " " + rpmX.ToString());
@@ -126,6 +134,7 @@ namespace matlabInterface
 //            if (!GVars.stopAtPoint)
 //            {
                    GVars.motorDrive.Duration = (UInt32)(((int) s3Float ) * GVars.powerScale * GVars.byte2Pulse + 1000.0d);
+//                   GVars.intOut = s3Float;
 //            }
 //            else
 //            {
