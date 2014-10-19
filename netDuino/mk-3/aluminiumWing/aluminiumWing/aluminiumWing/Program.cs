@@ -36,6 +36,10 @@ using SecretLabs.NETMF.Hardware.Netduino;
 //
 //  Crashed again. Up the PWM frequency to 100 Hz.
 //
+//  Start this branch to try and synchronize the two rotors.
+//  Change rpm required based on the timing of the CAN message
+//  relative to the hall effect sensor. Left will be the master.
+//
 namespace aluminiumWing
 {
 
