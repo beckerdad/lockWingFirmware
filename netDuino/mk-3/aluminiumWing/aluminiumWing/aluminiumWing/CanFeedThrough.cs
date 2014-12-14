@@ -1,7 +1,5 @@
 //#define filter
 #undef filter
-#define leftSynch
-//#define rightSynch
 
 using System;
 using Microsoft.SPOT;
@@ -17,10 +15,11 @@ namespace aluminiumWing
         //
         //  Definitions
         //
-        private static MCP2515 canHandler = new MCP2515();
+        public static MCP2515 canHandler = new MCP2515();
         private static MCP2515.CANMSG rxMessage = new MCP2515.CANMSG();
         private static InterruptPort CANMsgReady = new InterruptPort(Pins.GPIO_PIN_D4, true,  // A1 D2
                          Port.ResistorMode.PullUp, Port.InterruptMode.InterruptEdgeLow);
+
         //
         //  Filter on the data. This is too dificult to figure out, so use Matlab
         //  to get the correct values. Assume tau = 0.1, Period = 0.01 (100 Hz)
@@ -49,7 +48,7 @@ namespace aluminiumWing
             //  
             //  Set up the CAN parameters
             //
-            canHandler.InitCAN(MCP2515.enBaudRate.CAN_BAUD_500K, GVars.filter, GVars.mask);
+            canHandler.InitCAN(MCP2515.enBaudRate.CAN_BAUD_500K, GVars.filterRXF0, GVars.mask);
             canHandler.SetCANNormalMode();
             canHandler.ResetCanInterrupt();
         }
@@ -60,6 +59,10 @@ namespace aluminiumWing
         {
             canHandler.Receive(out rxMessage, 8);       // Receive before reset
             canHandler.ResetCanInterrupt();
+
+            if (rxMessage.CANID == GVars.CANSet)
+            {
+
 #if filter
             //
             //  Rename to my convention on the Netduino. Switch the signs here. It is just
@@ -77,30 +80,38 @@ namespace aluminiumWing
             xOldCol = xCol;
             xOldCyc = xCol;
 #else
-            int collective = (int)(255 - rxMessage.data[3]);
-            int cyclic = (int)(255 - rxMessage.data[4]);
+                int collective = (int)(255 - rxMessage.data[3]);
+                int cyclic = (int)(255 - rxMessage.data[4]);
 #endif
-            
-            UInt32 servoFront = (UInt32)((collective - 127) * GVars.servoSign[1] * GVars.servoScale * GVars.byte2Pulse) +
-                                (UInt32)((cyclic - 127) * GVars.servoSign[1] * GVars.servoScale * GVars.byte2Pulse) + GVars.frontAdd;
-            UInt32 servoInside = (UInt32)((collective - 127) * GVars.servoSign[2] * GVars.servoScale * GVars.byte2Pulse * GVars.collectiveScale) -
-                                 (UInt32)((cyclic - 127) * GVars.servoSign[2] * GVars.servoScale * GVars.byte2Pulse * GVars.cyclicScale) + GVars.inAdd;
-            UInt32 servoOutside = (UInt32)((collective - 127) * GVars.servoSign[3] * GVars.servoScale * GVars.byte2Pulse * GVars.collectiveScale) -
-                                  (UInt32)((cyclic - 127) * GVars.servoSign[3] * GVars.servoScale * GVars.byte2Pulse * GVars.cyclicScale) + GVars.outAdd;
 
-            //  Only place this is set, so no need to lock
-            GVars.front.Duration = servoFront;
-            GVars.inside.Duration = servoInside;
-            GVars.outside.Duration = servoOutside;
-            GVars.brake.Duration = 1500;
+                UInt32 servoFront = (UInt32)((collective - 127) * GVars.servoSign[1] * GVars.servoScale * GVars.byte2Pulse) +
+                                    (UInt32)((cyclic - 127) * GVars.servoSign[1] * GVars.servoScale * GVars.byte2Pulse) + GVars.frontAdd;
+                UInt32 servoInside = (UInt32)((collective - 127) * GVars.servoSign[2] * GVars.servoScale * GVars.byte2Pulse * GVars.collectiveScale) -
+                                     (UInt32)((cyclic - 127) * GVars.servoSign[2] * GVars.servoScale * GVars.byte2Pulse * GVars.cyclicScale) + GVars.inAdd;
+                UInt32 servoOutside = (UInt32)((collective - 127) * GVars.servoSign[3] * GVars.servoScale * GVars.byte2Pulse * GVars.collectiveScale) -
+                                      (UInt32)((cyclic - 127) * GVars.servoSign[3] * GVars.servoScale * GVars.byte2Pulse * GVars.cyclicScale) + GVars.outAdd;
 
-            lock (GVars.lockToken)
-            {
-                GVars.rpmCommand = rxMessage.data[2]; ;
+                //  Only place this is set, so no need to lock
+                GVars.front.Duration = servoFront;
+                GVars.inside.Duration = servoInside;
+                GVars.outside.Duration = servoOutside;
+                GVars.brake.Duration = 1500;
+
+                lock (GVars.lockToken)
+                {
+                    GVars.rpmCommand = rxMessage.data[2]; ;
+                }
             }
+                //
+                //  Do synchronization
+                //
+#if rightSynch
+            else if (rxMessage.CANID == GVars.CANSynch)
+            {
+                RpmControlLoop.adjustRPM(time.Ticks);
+            }
+#endif
         }
-
     }
-
-
 }
+

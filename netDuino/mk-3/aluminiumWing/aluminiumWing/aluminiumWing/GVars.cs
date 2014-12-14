@@ -1,5 +1,3 @@
-//#define left
-#define right
 
 using System;
 using Microsoft.SPOT;
@@ -16,13 +14,14 @@ namespace aluminiumWing
         //  in this routine only. The servo offsets should be in the
         //  canFeedThrough class.
         //
-        //  Rig the in and out bot horn aligned with slit in motor 33 and 20+16=36
+        //  Rig the in and out both horn aligned with slit in motor 33 and 20+16=36
         //
         //  Add a cyclic offset to rotate the tip path plane inwards.
         //
-
-        
-#if (left)
+        //
+        //  Left must receive 8 only.
+        //
+#if leftSynch
         private const Int16 swashIn = 10;
         public static double[] servoSign = new double[5] { 1, -1, 1, -1, 1 };
         // The offsets are defined relative to 1500.
@@ -30,11 +29,16 @@ namespace aluminiumWing
         public const UInt32 inAdd = 1500+40-swashIn;
         public const UInt32 outAdd = 1500-160-swashIn;
         public const UInt32 brakeAdd = 1500;
-        public const UInt16 mask = 8;                          // Filter and mask  8 16
-        public const UInt16 filter = 0x7f7;                    // 0x7f7 and 0x7ef
+        public const UInt16 mask = 0x7F5;                          // Mask  2 8
+        public const UInt16 filterRXF0 = 0;                        // does not matter
+        public const UInt16 CANStop = 2;
+        public const UInt16 CANSynch = 4;
+        public const UInt16 CANSet = 8;
 #endif
-
-#if (right)
+        //
+        //  The right hand pod must now receive message 4 and 16
+        //  So set the filter to 0x7ff and masks to 4 and 16
+#if rightSynch
         private const Int16 swashIn = 30;
         public static double[] servoSign = new double[5] { 1, -1, -1, 1, 1 };
         // The offsets are defined relative to 1500.
@@ -42,10 +46,13 @@ namespace aluminiumWing
         public const UInt32 inAdd = 1500 - 40+swashIn;
         public const UInt32 outAdd = 1500 + 160+swashIn;
         public const UInt32 brakeAdd = 1500;
-        public const UInt16 mask = 16;                          // Filter and mask  8 16
-        public const  UInt16 filter = 0x7ef;                    // 0x7f7 and 0x7ef#elif right
+        public const UInt16 mask = 0x7E9;                       // mask for 2 4 16
+        public const UInt16 filterRXF0 = 0;                    // does not matter
+        public const UInt16 CANStop = 2;
+        public const UInt16 CANSynch = 4;
+        public const UInt16 CANSet = 16;
 #endif
-                // in and out is 32 long, front is 38 long.
+        // in and out is 32 long, front is 38 long.
         public const double collectiveScale = 38.0d / 32.0d;
         public const double cyclicScale = 0.5d * 38.0d / 32.0d;
 
@@ -72,12 +79,17 @@ namespace aluminiumWing
         //
         //  Global variables.
         //
-        public static UInt64 timeOld = 0;
-        public static UInt64 timeNow = 0;
+        public static Int64 halTimeOld = 0;
+        public static Int64 halTimeNow = 0;
 
         public static double rpm = 0;
         public static double rpmCommand = 0;
         public static bool rotorStopped = true;
+        //
+        //  RPM control variables
+        //
+        public static double rpmRequired = 0;
+        public static double addRPM = 0;
         //
         //  Lock token
         //

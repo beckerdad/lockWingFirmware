@@ -1,4 +1,7 @@
-﻿using System;
+﻿//#define leftSynch  These are defined in the project properties to get global scope
+//#define rightSynch
+
+using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -36,9 +39,10 @@ using SecretLabs.NETMF.Hardware.Netduino;
 //
 //  Crashed again. Up the PWM frequency to 100 Hz.
 //
-//  Start this branch to try and synchronize the two rotors.
+//  Start rotorSynch branch to try and synchronize the two rotors.
 //  Change rpm required based on the timing of the CAN message
 //  relative to the hall effect sensor. Left will be the master.
+//  Right will try and follow.
 //
 namespace aluminiumWing
 {
@@ -54,7 +58,7 @@ namespace aluminiumWing
         //
         //  "Static" variables
         //
-        public const double rpmScale = (double)60.0d * System.TimeSpan.TicksPerSecond;
+        public const double rpmScale = (double)60.0d * System.TimeSpan.TicksPerSecond;   // Scale rpm
         //
         //  Main program. Just start the threads.
         //
@@ -73,21 +77,36 @@ namespace aluminiumWing
             //  Keep the program running.
             //
             Thread.Sleep(Timeout.Infinite);
+
         }
 
         //
         //  A simple rpm calculation. Keep in the main program.
+        //  Also send a CAN message from left to right.
         //
 
         static void hal_OnInterrupt(uint data1, uint data2, DateTime time)
         {
             lock (GVars.lockToken)
             {
-                GVars.timeNow = (UInt64)time.Ticks;
-                GVars.rpm = rpmScale / ((double)(GVars.timeNow - GVars.timeOld));
+                GVars.halTimeNow = time.Ticks;
+                GVars.rpm = rpmScale / ((double)(GVars.halTimeNow - GVars.halTimeOld));
             }
-            GVars.timeOld = GVars.timeNow;
+            GVars.halTimeOld = GVars.halTimeNow;
             GVars.red.Write(!GVars.red.Read());
+            //
+            //  If this is the left pod, 
+            //  Send an empty CAN message to the right pod.
+            //  If right. do nothing.
+            //
+
+#if leftSynch
+            Marenco.Comms.MCP2515.CANMSG tick = new Marenco.Comms.MCP2515.CANMSG();
+            tick.CANID = GVars.CANSynch;
+            tick.data = new byte[0];
+            CanFeedThrough.canHandler.Transmit(tick, 100);
+            GVars.addRPM = 0;
+#endif
         }
     }
 }

@@ -17,7 +17,7 @@ namespace aluminiumWing
         //
         //  User tuned variables.
         //
-        private const double rpmMaxSpeed = 1450d; //1450.0d;                        // rpm set point
+        public const double rpmMaxSpeed = 1450d; //1450.0d;                        // rpm set point
         private const int rpmGood = 20;                                             // Green led if closer than this, red otherwise
         private const int controlPeriod = 25;                                      // Control loop period in milliseconds
         private const int controlStart = 10;                                      // Delay before timer starts
@@ -38,13 +38,19 @@ namespace aluminiumWing
         private const double rpmIntLimitBot = 20.0d;
         private const int controlCutIn = 30;                                        // Speed at which the stick responds
         private const int controlRampEnd = 180;                                     // Setting for ramp end
-        private const double rpmCutInSpeed = 300.0d;                                // rpm                                 // Integral limit
+        private const double rpmCutInSpeed = 300.0d;                                // rpm 
+        //
+        //  Synchronization variables.
+        //
+        public const double lockPeriod = 0.45;         // Lock period in terms of revolutions. Normalized to 1
+        public const double rpmMaxDiff = 20;              // Max difference in rpm. The gain really.
+        public const double catchUpRPM = 5;                // rpm difference to drive into lock.
         //
         //  "Static" variables.
         //
+        private static double rpmSet = 0;
         private static double rpmX = 0.0d;
         private static double s3Float = 0.0d;
-        private static double rpmRequired = 0.0d;
         private const double rpmSlope = (double)(rpmMaxSpeed - rpmCutInSpeed) / (controlRampEnd - controlCutIn);
         private const double rpmConst = rpmCutInSpeed - rpmSlope * controlCutIn;
         private static double rpmError = 0.0d;
@@ -73,10 +79,18 @@ namespace aluminiumWing
             //
             if (rpmCMDLocal > controlCutIn)
             {
-                rpmRequired = rpmSlope * rpmCMDLocal + rpmConst;
-                if (rpmRequired > rpmMaxSpeed) rpmRequired = rpmMaxSpeed;
-
-                rpmError = (rpmRequired - rpmLocal);
+                lock (GVars.lockToken)
+                {
+                    GVars.rpmRequired = rpmSlope * rpmCMDLocal + rpmConst;
+                    if (GVars.rpmRequired > rpmMaxSpeed) GVars.rpmRequired = rpmMaxSpeed;
+#if rightSynch          // Make absolutely sure.
+                    rpmSet = GVars.rpmRequired + GVars.addRPM;
+#endif
+#if leftSynch
+                    rpmSet = GVars.rpmRequired;
+#endif
+                }
+                rpmError = (rpmSet - rpmLocal);
                 //
                 //  Limit the integrator
                 //
@@ -94,7 +108,8 @@ namespace aluminiumWing
                 //
                 lock (GVars.lockToken)
                 {
-                    s3Float = cOne * rpmX + propGain * rpmError + feedForward * rpmRequired;
+                    // Make feedforward proportional to rpm required, not rpmSet.
+                    s3Float = cOne * rpmX + propGain * rpmError + feedForward * GVars.rpmRequired;
                     rpmX = aOne * rpmX + iGain * rpmError;
                 }
                 if (s3Float < 28) s3Float = 28;
@@ -113,5 +128,31 @@ namespace aluminiumWing
  null,
  controlStart,
  controlPeriod);
+        //
+        //  Calculate the added rpm needed to synchronize.
+        //
+
+        public static void adjustRPM(long canTicks)
+        {
+            const double ticksPS = System.TimeSpan.TicksPerSecond;
+            double lockTime = 0.0d;
+            double timeDiff = 0.0d;
+
+            lock (GVars.lockToken)
+            {
+                lockTime = lockPeriod / (GVars.rpmRequired / 60.0d);          // Time in seconds where synch happens
+                timeDiff = (double)(canTicks - GVars.halTimeNow) / ticksPS;   // > 0 right is leading
+                if (timeDiff < lockTime && timeDiff > -lockTime)
+                {
+                    double rpmSynchGain = rpmMaxDiff / (lockPeriod / (GVars.rpmRequired / 60.0d));
+                    GVars.addRPM = (int)(-rpmSynchGain * timeDiff);
+                }
+                else
+                //  Speed up the right side untile we are within the synch window.
+                {
+                    GVars.addRPM = catchUpRPM;
+                }
+            }
+        }
     }
 }
