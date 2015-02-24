@@ -1,5 +1,5 @@
 ﻿//#define leftSynch  These are defined in the project properties to get global scope
-//#define rightSynch
+//#define rightSynch Defined in the project..build.
 
 using System;
 using System.Net;
@@ -44,6 +44,17 @@ using SecretLabs.NETMF.Hardware.Netduino;
 //  relative to the hall effect sensor. Left will be the master.
 //  Right will try and follow.
 //
+//  14 December 2014, rename project to MK3BrakeandSynch.
+//  Now add brake logic.
+//
+//  2 Jan 2015, discoverd that mask and filter was swopped around.
+//  This was most propably the cause for the suicide attemptsw by
+//  lockWing. Checked out carefully, all seems OK now.
+//
+//  21 February, Becker gets back to the problem of Synching and stopping
+//  the rotors. Add stopping.
+//
+
 namespace aluminiumWing
 {
 
@@ -55,6 +66,9 @@ namespace aluminiumWing
         private static InterruptPort hal = new InterruptPort(Pins.GPIO_PIN_A2, false, Port.ResistorMode.Disabled, Port.InterruptMode.InterruptEdgeLow);
         private static CanFeedThrough runCan = new CanFeedThrough();
         private static RpmControlLoop runRPM = new RpmControlLoop();
+#if leftSynch
+        private static Marenco.Comms.MCP2515.CANMSG tick = new Marenco.Comms.MCP2515.CANMSG();
+#endif
         //
         //  "Static" variables
         //
@@ -93,20 +107,58 @@ namespace aluminiumWing
                 GVars.rpm = rpmScale / ((double)(GVars.halTimeNow - GVars.halTimeOld));
             }
             GVars.halTimeOld = GVars.halTimeNow;
-            GVars.red.Write(!GVars.red.Read());
+            GVars.green.Write(!GVars.green.Read());
             //
             //  If this is the left pod, 
             //  Send an empty CAN message to the right pod.
             //  If right. do nothing.
             //
-
 #if leftSynch
-            Marenco.Comms.MCP2515.CANMSG tick = new Marenco.Comms.MCP2515.CANMSG();
-            tick.CANID = GVars.CANSynch;
+            tick.CANID = (uint) GVars.CANSynch;
             tick.data = new byte[0];
             CanFeedThrough.canHandler.Transmit(tick, 100);
             GVars.addRPM = 0;
 #endif
+            //
+            //  Start a thread to stop the rotor.
+            //
+            if (GVars.stopCMD && !GVars.stopStart)
+            {
+                GVars.stopStart = true;             // Get this going asap.
+                Debug.Print(Utility.GetMachineTime().Ticks.ToString());
+                Thread stopRotor = new Thread(StopRotorFunction);
+                stopRotor.Start();
+            }
+        }
+
+        static void StopRotorFunction()
+        {
+            //
+            //  Insert the optimal delay from the last Hall
+            //  sensor passing.
+            //
+//            Thread.Sleep(GVars.timeStopDelay);
+            //
+            //  Turn on the brake for the time the brake is on
+            //
+            Debug.Print(Utility.GetMachineTime().Ticks.ToString());
+
+            GVars.motorDrive.Duration = (UInt32)(0 * GVars.powerScale * GVars.byte2Pulse + 1000.0d);
+            Thread.Sleep(GVars.timeBrakeOn);
+            //
+            //  Activate the brake servo
+            //
+            GVars.brake.Duration = GVars.brakeOn;
+            //
+            //  Turn the motor on for a short period to make sure we are locked.
+            //
+            GVars.motorDrive.Duration = (UInt32)(255 * GVars.powerScale * GVars.byte2Pulse + 1000.0d);
+            Thread.Sleep(GVars.timePowerOn);
+            GVars.motorDrive.Duration = (UInt32)(0 * GVars.powerScale * GVars.byte2Pulse + 1000.0d);
+            //
+            //  Signal that we are now stopped.
+            //
+            GVars.stopped = true;
         }
     }
 }

@@ -19,7 +19,6 @@ namespace aluminiumWing
         private static MCP2515.CANMSG rxMessage = new MCP2515.CANMSG();
         private static InterruptPort CANMsgReady = new InterruptPort(Pins.GPIO_PIN_D4, true,  // A1 D2
                          Port.ResistorMode.PullUp, Port.InterruptMode.InterruptEdgeLow);
-
         //
         //  Filter on the data. This is too dificult to figure out, so use Matlab
         //  to get the correct values. Assume tau = 0.1, Period = 0.01 (100 Hz)
@@ -59,9 +58,15 @@ namespace aluminiumWing
         {
             canHandler.Receive(out rxMessage, 8);       // Receive before reset
             canHandler.ResetCanInterrupt();
-
+//            Debug.Print(rxMessage.CANID.ToString());
             if (rxMessage.CANID == GVars.CANSet)
             {
+                //
+                //  Turn the stop flags off
+                //
+                GVars.stopCMD = false;
+                GVars.stopStart = false;
+                GVars.stopped = false;
 
 #if filter
             //
@@ -95,22 +100,34 @@ namespace aluminiumWing
                 GVars.front.Duration = servoFront;
                 GVars.inside.Duration = servoInside;
                 GVars.outside.Duration = servoOutside;
-                GVars.brake.Duration = 1500;
+                GVars.brake.Duration = GVars.brakeOff;
 
                 lock (GVars.lockToken)
                 {
                     GVars.rpmCommand = rxMessage.data[2]; ;
                 }
             }
-                //
-                //  Do synchronization
-                //
+            //
+            //  Do synchronization
+            //
 #if rightSynch
             else if (rxMessage.CANID == GVars.CANSynch)
             {
                 RpmControlLoop.adjustRPM(time.Ticks);
             }
 #endif
+                //
+                //  Received a stop command
+                //
+            else if (rxMessage.CANID == GVars.CANStop)
+            {
+                // Set the flag to initiate the rotor stopping.
+                GVars.stopCMD = true;
+                //  Center the servos, not the brake or the power.
+                GVars.front.Duration = GVars.frontAdd;
+                GVars.inside.Duration = GVars.inAdd;
+                GVars.outside.Duration = GVars.outAdd;
+            }
         }
     }
 }

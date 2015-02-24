@@ -24,16 +24,17 @@ namespace aluminiumWing
         //
         //  Gains are from the last strap down experiment on 8 October 2014.
         //  The integral limit was not chacked, this may be a bit low.
+        //  Play with these numbers to get good performance.
         //
         private const double feedForward = 0.1d;                                    // To reduce the integral variable
         private const double aOne = 1.0d;                                           // Always 1.
         private const double iGain = 0.1d * controlPeriod / 1000.0d;                 // Integral gain (B) times Period.
-        private const double cOne = 1.0d;                                           // Always 1
-        private const double propGain = 0.0336d;                                           // Proportional gain 
+        private const double cOne = 1.0d;                                            // Always 1
+        private const double propGain = 0.0336d;                                     // Proportional gain 
         //
         //  Non-control variables.
         //
-        private const double rpmIntLimit = 20.0d;                               // Integral limit. About 100 in the simulations.
+        private const double rpmIntLimit = 60.0d;                                   // Integral limit. About 100 in the simulations.
         private const double rpmIntSlope = rpmIntLimit / 256.0d;
         private const double rpmIntLimitBot = 20.0d;
         private const int controlCutIn = 30;                                        // Speed at which the stick responds
@@ -42,9 +43,9 @@ namespace aluminiumWing
         //
         //  Synchronization variables.
         //
-        public const double lockPeriod = 0.45;         // Lock period in terms of revolutions. Normalized to 1
-        public const double rpmMaxDiff = 20;              // Max difference in rpm. The gain really.
-        public const double catchUpRPM = 5;                // rpm difference to drive into lock.
+        public const double lockPeriod = 0.45;              // Lock period in terms of revolutions. Normalized to 1
+        public const double rpmSynchGain = 20;              // Gain in terms of period
+        public const double catchUpRPM = 50;                // rpm difference to drive into lock.
         //
         //  "Static" variables.
         //
@@ -69,6 +70,12 @@ namespace aluminiumWing
         //
         private static Timer controlTimer = new Timer(delegate
         {
+            //
+            //  Unwind the integrater when the rotors are locked.
+            //
+
+            if (GVars.stopCMD || GVars.stopStart) rpmX = 0;
+
             lock (GVars.lockToken)
             {
                 rpmCMDLocal = GVars.rpmCommand;
@@ -112,7 +119,7 @@ namespace aluminiumWing
                     s3Float = cOne * rpmX + propGain * rpmError + feedForward * GVars.rpmRequired;
                     rpmX = aOne * rpmX + iGain * rpmError;
                 }
-                if (s3Float < 28) s3Float = 28;
+                if (s3Float < 28) s3Float = 28;                     // Have to do more aOne this.
             }
             else
             //
@@ -122,7 +129,8 @@ namespace aluminiumWing
                 s3Float = rpmCMDLocal;
                 if (s3Float < 0) s3Float = 0;
             }
-            if (s3Float > 255.0d) s3Float = 255;
+            if (s3Float > 255.0d) s3Float = 255.0d;
+            if (!GVars.stopCMD && !GVars.stopStart) 
             GVars.motorDrive.Duration = (UInt32)(((int)s3Float) * GVars.powerScale * GVars.byte2Pulse + 1000.0d);
         },
  null,
@@ -137,20 +145,47 @@ namespace aluminiumWing
             const double ticksPS = System.TimeSpan.TicksPerSecond;
             double lockTime = 0.0d;
             double timeDiff = 0.0d;
+            double timeDiffRL = 0.0d;
+            double timeDiffLL = 0.0d;
+            double periodNow = 0.0d;
+            double rpmLockScale = 0.0d;
 
             lock (GVars.lockToken)
+                //
+                //  The interrupt happens on the HAL interrupt on the right hand side
+                //  POD. canTicks is the time stamp of a message that came from the 
+                //  left hand pod. 
+                //  Both timeDiffLL and timeDiffRL are asumed to be greater than zero.
+                //  The smallest value is chosen for control.
             {
-                lockTime = lockPeriod / (GVars.rpmRequired / 60.0d);          // Time in seconds where synch happens
-                timeDiff = (double)(canTicks - GVars.halTimeNow) / ticksPS;   // > 0 right is leading
+                periodNow = 1.0d / (GVars.rpm / 60.0d);
+                rpmLockScale = GVars.rpmRequired / rpmMaxSpeed;
+                lockTime = lockPeriod * periodNow;                              // Time in seconds where synch happens
+                timeDiffRL = (double)(canTicks - GVars.halTimeNow) / ticksPS;   // left is leading
+                timeDiffLL = (double)(GVars.halTimeNow - canTicks) / ticksPS + periodNow;   // right is leading
+
+                if (timeDiffLL <= timeDiffRL)
+                {
+                    timeDiff = timeDiffLL;
+                }
+                else
+                {
+                    timeDiff = -timeDiffRL;
+                }
                 if (timeDiff < lockTime && timeDiff > -lockTime)
                 {
-                    double rpmSynchGain = rpmMaxDiff / (lockPeriod / (GVars.rpmRequired / 60.0d));
-                    GVars.addRPM = (int)(-rpmSynchGain * timeDiff);
+                    GVars.addRPM = (int)(rpmSynchGain *
+                        timeDiff / lockTime *               // Linear scaling with lock Time
+                        rpmLockScale);                      // Washout with rpm 
+                    GVars.red.Write(true);
+                    Debug.Print(GVars.addRPM.ToString());
                 }
                 else
                 //  Speed up the right side untile we are within the synch window.
                 {
                     GVars.addRPM = catchUpRPM;
+                    GVars.red.Write(false);
+                    Debug.Print("No Synch");
                 }
             }
         }

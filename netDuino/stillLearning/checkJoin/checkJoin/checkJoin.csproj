@@ -1,13 +1,13 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <AssemblyName>debugAccel</AssemblyName>
+    <AssemblyName>checkJoin</AssemblyName>
     <OutputType>Exe</OutputType>
-    <RootNamespace>debugAccel</RootNamespace>
+    <RootNamespace>checkJoin</RootNamespace>
     <ProjectTypeGuids>{b69e3092-b931-443c-abe7-7e7b65f2a37f};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <ProductVersion>9.0.21022</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{11E911DD-76FC-43CA-928E-19663F9430A5}</ProjectGuid>
+    <ProjectGuid>{40388701-338B-4EE3-ABC7-497B663468DB}</ProjectGuid>
     <TargetFrameworkVersion>v4.3</TargetFrameworkVersion>
     <NetMfTargetsBaseDir Condition="'$(NetMfTargetsBaseDir)'==''">$(MSBuildExtensionsPath32)\Microsoft\.NET Micro Framework\</NetMfTargetsBaseDir>
     <DeployDevice>Netduino</DeployDevice>
@@ -44,11 +44,5 @@
     <Reference Include="SecretLabs.NETMF.Hardware" />
     <Reference Include="SecretLabs.NETMF.Hardware.Netduino" />
     <Reference Include="System" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\..\marenco\marencoLibraries\Marenco.Sensors\Marenco.Sensors\Marenco.Sensors.csproj">
-      <Project>{6C9F4D24-7B74-421F-87EF-35D106E9FF6D}</Project>
-      <Name>Marenco.Sensors</Name>
-    </ProjectReference>
   </ItemGroup>
 </Project>
